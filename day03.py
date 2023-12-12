@@ -11,10 +11,7 @@ with open("./data/day03.txt", "r") as f:
     for i, row in enumerate(data):
         temp_row = row
         numbers = re.findall("[0-9]+", row)
-        if len(numbers) != len(set(numbers)):
-            print('has dups', numbers, row)
         for number in numbers:
-            print(number, '>', temp_row)
             has_symbol_in_bounding_box = False
             upper_bound = tuple((temp_row.find(number) - 1, i - 1))
             lower_bound = tuple((temp_row.find(number) + len(number), i + 1))
