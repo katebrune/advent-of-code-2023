@@ -1,5 +1,7 @@
 import re
 import functools
+from enum import Enum
+from itertools import chain
 
 """
 Part 1
@@ -98,3 +100,133 @@ with open("./data/day05.txt", "r") as f:
     lowest_location = functools.reduce(
         lambda a, b: a if a < b else b, locations)
     print(lowest_location)
+
+"""
+Part 2
+"""
+seed_ranges = []
+with open("./data/day05.txt", "r") as f:
+    for line in f:
+        line = line.strip()
+        if re.match('seeds:', line):
+            temp_seeds = list(
+                map(lambda s: int(s), line.replace('seeds: ', '').split(' ')))
+            for i in range(len(temp_seeds)):
+                if i % 2 != 0:
+                    continue
+                seed_ranges.append(
+                    range(temp_seeds[i], temp_seeds[i] + temp_seeds[i+1]))
+        else:
+            break
+
+
+class Maps(Enum):
+    SEED_TO_SOIL = 1,
+    SOIL_TO_FERTILIZER = 2,
+    FERTILIZER_TO_WATER = 3
+    WATER_TO_LIGHT = 4
+    LIGHT_TO_TEMPERATURE = 5
+    TEMPERATURE_TO_HUMIDITY = 6
+    HUMIDITY_TO_LOCATION = 7
+
+
+maps = {}
+with open("./data/day05.txt", "r") as f:
+    cur = None
+    for line in f:
+        line = line.strip()
+        if not len(line):
+            continue
+        if re.match('seeds:', line):
+            continue
+        elif re.match('seed-to-soil map:', line):
+            cur = Maps.SEED_TO_SOIL
+            maps[cur] = []
+        elif re.match('soil-to-fertilizer map:', line):
+            cur = Maps.SOIL_TO_FERTILIZER
+            maps[cur] = []
+        elif re.match('fertilizer-to-water map:', line):
+            cur = Maps.FERTILIZER_TO_WATER
+            maps[cur] = []
+        elif re.match('water-to-light map:', line):
+            cur = Maps.WATER_TO_LIGHT
+            maps[cur] = []
+        elif re.match('light-to-temperature map:', line):
+            cur = Maps.LIGHT_TO_TEMPERATURE
+            maps[cur] = []
+        elif re.match('temperature-to-humidity map:', line):
+            cur = Maps.TEMPERATURE_TO_HUMIDITY
+            maps[cur] = []
+        elif re.match('humidity-to-location map:', line):
+            cur = Maps.HUMIDITY_TO_LOCATION
+            maps[cur] = []
+        else:
+            line = list(map(lambda s: int(s), line.split(' ')))
+            maps[cur].append({
+                "source_start": line[1],
+                "target_start": line[0],
+                "source_range": range(line[1], line[1] + line[2]),
+            })
+
+
+def transform_range(s, t, r):
+    if s > t:
+        diff = s - t
+        return range(r.start - diff, r.stop - diff)
+    elif t > s:
+        diff = t - s
+        return range(r.start + diff, r.stop + diff)
+    else:
+        return r
+
+
+def get_ranges(input_ranges, maps):
+    output_ranges = []
+    for r in input_ranges:
+        for i, m in enumerate(maps):
+            intersection = range(max(r.start, m["source_range"].start), min(
+                r.stop, m["source_range"].stop)) or None
+            if not intersection:
+                if i == len(maps) - 1:
+                    output_ranges.append(r)
+            elif intersection == r:
+                output_ranges.append(transform_range(
+                    m["source_start"], m["target_start"], intersection))
+                break
+            else:
+                t_range = transform_range(
+                    m["source_start"], m["target_start"], intersection)
+                output_ranges.append(t_range)
+                if intersection.start == r.start:
+                    diff = range(intersection.stop, r.stop)
+                    input_ranges.append(diff)
+                elif intersection.stop == r.stop:
+                    diff = range(r.start, intersection.start)
+                    input_ranges.append(diff)
+                else:
+                    diff_l = range(r.start, intersection.start)
+                    diff_r = range(intersection.stop, r.stop)
+                    input_ranges.append(diff_l)
+                    input_ranges.append(diff_r)
+                break
+    return output_ranges
+
+
+soil_ranges = get_ranges(
+    list(set(seed_ranges)), maps[Maps.SEED_TO_SOIL])
+fertilizer_ranges = get_ranges(
+    list(set(soil_ranges)), maps[Maps.SOIL_TO_FERTILIZER])
+water_ranges = get_ranges(
+    list(set(fertilizer_ranges)), maps[Maps.FERTILIZER_TO_WATER])
+light_ranges = get_ranges(
+    list(set(water_ranges)), maps[Maps.WATER_TO_LIGHT])
+temperature_ranges = get_ranges(
+    list(set(light_ranges)), maps[Maps.LIGHT_TO_TEMPERATURE])
+humidity_ranges = get_ranges(
+    list(set(temperature_ranges)), maps[Maps.TEMPERATURE_TO_HUMIDITY])
+location_ranges = get_ranges(
+    list(set(humidity_ranges)), maps[Maps.HUMIDITY_TO_LOCATION])
+lowest_range = functools.reduce(
+    lambda a, b: a if a.start < b.start else b, location_ranges)
+lowest_location = lowest_range.start
+print(lowest_location)
