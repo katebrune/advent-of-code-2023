@@ -1,7 +1,6 @@
 import re
 import functools
 from enum import Enum
-from itertools import chain
 
 """
 Part 1
